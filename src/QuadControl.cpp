@@ -8,6 +8,19 @@
 #include "BaseController.h"
 #include "Math/Mat3x3F.h"
 
+//--------------------------------------------------
+//custom: delete before submitting
+#include <iostream> // delete in final
+
+// enable/disable methods
+
+// scenario 3
+bool LateralPositionControlEnabled = true;
+bool AltitudeControlEnabled = true;
+bool YawControlEnabled = true;
+
+//--------------------------------------------------
+
 #ifdef __PX4_NUTTX
 #include <systemlib/param/param.h>
 #endif
@@ -77,20 +90,17 @@ VehicleCommand QuadControl::GenerateMotorCommands(float collThrustCmd, V3F momen
 	float yawThrust = -momentCmd.z / kappa;
 	float vertThrust = collThrustCmd;
 
-	// roll (x-axis):  1&4 vs 2&3
-	// pitch (y-axis): 1&2 vs 3&4
-	// yaw (z-axis): 1&3 (+) vs 2&4 (-) 
-	// vertical: +1, +2, +3, +4
+	/*
+	    roll (x-axis):  1&4 vs 2&3
+	    pitch (y-axis): 1&2 vs 3&4
+	    yaw (z-axis): 1&3 (+) vs 2&4 (-) 
+	    vertical: +1, +2, +3, +4
+	*/
 
-	cmd.desiredThrustsN[0] = ( rollThrust + pitchThrust + yawThrust + vertThrust) / 4.f; // front left (Rotor 1)
+	cmd.desiredThrustsN[0] = (rollThrust + pitchThrust + yawThrust + vertThrust) / 4.f;  // front left (Rotor 1)
 	cmd.desiredThrustsN[1] = (-rollThrust + pitchThrust - yawThrust + vertThrust) / 4.f; // front right (Rotor 2)
-	cmd.desiredThrustsN[2] = ( rollThrust - pitchThrust - yawThrust + vertThrust) / 4.f; // rear left (Rotor 4)
+	cmd.desiredThrustsN[2] = (rollThrust - pitchThrust - yawThrust + vertThrust) / 4.f;  // rear left (Rotor 4)
 	cmd.desiredThrustsN[3] = (-rollThrust - pitchThrust + yawThrust + vertThrust) / 4.f; // rear right (Rotor 3)
-
-	//cmd.desiredThrustsN[0] = mass * 9.81f / 4.f; // front left
-	//cmd.desiredThrustsN[1] = mass * 9.81f / 4.f; // front right
-	//cmd.desiredThrustsN[2] = mass * 9.81f / 4.f; // rear left
-	//cmd.desiredThrustsN[3] = mass * 9.81f / 4.f; // rear right
 
   /////////////////////////////// END STUDENT CODE ////////////////////////////
 
@@ -118,7 +128,6 @@ V3F QuadControl::BodyRateControl(V3F pqrCmd, V3F pqr)
 	V3F rateError = pqrCmd - pqr;
 	V3F MOI = V3F(Ixx, Iyy, Izz);
 	momentCmd = MOI * (kpPQR * rateError);
-	momentCmd.constrain(minMotorThrust, maxMotorThrust);
 
   /////////////////////////////// END STUDENT CODE ////////////////////////////
 
@@ -149,7 +158,33 @@ V3F QuadControl::RollPitchControl(V3F accelCmd, Quaternion<float> attitude, floa
 
   ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
 
+	if (collThrustCmd > 0.0)
+	{
+		//calculate error rates in the inertial frame
+		float vertAccel = collThrustCmd / mass;
+		float b_x_c = -CONSTRAIN(accelCmd.x / vertAccel, -maxTiltAngle, maxTiltAngle);
+		float b_y_c = -CONSTRAIN(accelCmd.y / vertAccel, -maxTiltAngle, maxTiltAngle);
+		float b_x_a = R(0, 2); // R13
+		float b_y_a = R(1, 2); // R23
+		float b_dot_x_c = kpBank * (b_x_c - b_x_a);
+		float b_dot_y_c = kpBank * (b_y_c - b_y_a);
 
+		// using attitude data, convert inertial 
+		// rates into body frame rates
+		float R11 = R(0, 0);
+		float R12 = R(0, 1);
+		float R21 = R(1, 0);
+		float R22 = R(1, 1);
+		float R33 = R(2, 2);
+
+		pqrCmd.x = (R21 * b_dot_x_c - R11 * b_dot_y_c) / R33;
+		pqrCmd.y = (R22 * b_dot_x_c - R12 * b_dot_y_c) / R33;
+	}
+	else
+	{
+		pqrCmd.x = 0.0;
+		pqrCmd.y = 0.0;
+	}
 
   /////////////////////////////// END STUDENT CODE ////////////////////////////
 
@@ -181,7 +216,29 @@ float QuadControl::AltitudeControl(float posZCmd, float velZCmd, float posZ, flo
 
   ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
 
+	//proportional
+	float zErr = posZCmd - posZ;
+	float p = kpPosZ * zErr;
+	
+	//integral
+	integratedAltitudeError += zErr * dt;
+	float i = KiPosZ * integratedAltitudeError;
 
+	//differential
+	float zErrDot = velZCmd - velZ;
+	float d = kpVelZ * zErrDot;
+
+	//PID control + accel feed-forward
+	float uBar1 = p + i + d + accelZCmd;
+	float R33 = R(2, 2);
+	float zDotDot = (uBar1 - CONST_GRAVITY) / R33;
+	zDotDot = CONSTRAIN(zDotDot, -maxDescentRate / dt, maxAscentRate / dt);
+
+	//calculate thrust from acceleration
+	thrust = mass * -zDotDot;
+
+	if (!AltitudeControlEnabled)
+		thrust = 0;
 
   /////////////////////////////// END STUDENT CODE ////////////////////////////
   
@@ -219,7 +276,21 @@ V3F QuadControl::LateralPositionControl(V3F posCmd, V3F velCmd, V3F pos, V3F vel
 
   ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
 
-  
+	// Position (apply Max Speed)
+	V3F velXYCmd = kpPosXY * (posCmd - pos);
+	if (velXYCmd.magXY() > maxSpeedXY)
+		velXYCmd = velXYCmd.norm() * maxSpeedXY;
+
+	accelCmd += kpPosXY * (posCmd - pos) + kpVelXY * (velCmd - vel);
+
+	if (accelCmd.magXY() > maxAccelXY)
+		accelCmd = accelCmd.norm() * maxAccelXY;
+
+	//std::cout << "\nLateralPosition Debug" << endl;
+	//std::cout << "Result (Base): (" << accelCmd.x  << ", " << accelCmd.y << ")" << endl;
+
+	if (!LateralPositionControlEnabled)
+		accelCmd = accelCmdFF;
 
   /////////////////////////////// END STUDENT CODE ////////////////////////////
 
@@ -242,6 +313,21 @@ float QuadControl::YawControl(float yawCmd, float yaw)
   float yawRateCmd=0;
   ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
 
+	// Ensure the target is within range of 0 to 2 * pi
+	float twoPi = 2.f * F_PI;
+	float yawCmdNew = fmod(yawCmd, twoPi);
+	
+	float yawError = yawCmdNew - yaw;
+
+	if (yawError > F_PI)
+		yawError -= twoPi;
+	else if (yawError < -F_PI)
+		yawError += twoPi;
+
+	yawRateCmd = kpYaw * yawError;
+
+	if (!YawControlEnabled)
+		yawRateCmd = 0;
 
   /////////////////////////////// END STUDENT CODE ////////////////////////////
 
