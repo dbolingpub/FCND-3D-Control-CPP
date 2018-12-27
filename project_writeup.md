@@ -135,7 +135,7 @@ Ultimately, this will generate lateral acceleration by changing the vehicle's bo
 
 The control equations are:
 
-![Roll Pitch Control Formula](./misc/LateralControllerEquations.png)
+![Lateral Controller Equations](./misc/LateralControllerEquations.png)
 
 First, calculate the commanded velocity component and limit it to the max speed:
 
@@ -232,4 +232,97 @@ cmd.desiredThrustsN[3] = (-rollThrust - pitchThrust + yawThrust + vertThrust) / 
 
 #### 1. Your C++ controller is successfully able to fly the provided test trajectory and visually passes inspection of the scenarios leading up to the test trajectory.
 
-Content here!
+---
+
+![Scenario 1 Complete](./misc/SimulatorScenario1Complete.png)
+
+##### Scenario #1
+
+Upon initial setup, and after accounting for the proper weight of the vehicle, this scenario passed. Later this would pass again once GenerateMotorThrusts() was implemented:
+
+```
+Simulation #1876 (../config/1_Intro.txt)
+PASS: ABS(Quad.PosFollowErr) was less than 0.500000 for at least 0.800000 seconds
+```
+
+---
+
+![Scenario 2 Complete](./misc/SimulatorScenario2Complete.png)
+
+##### Scenario #2: Body Rate and Roll/Pitch Control
+
+Next, we implemented Body Rate Control and Roll Pitch Control. Upon successful tuning of the parameters, a successful run resulted:
+
+```
+Simulation #2519 (../config/2_AttitudeControl.txt)
+PASS: ABS(Quad.Roll) was less than 0.025000 for at least 0.750000 seconds
+PASS: ABS(Quad.Omega.X) was less than 2.500000 for at least 0.750000 seconds
+```
+
+---
+
+![Scenario 3 Complete](./misc/SimulatorScenario3Complete.png)
+
+##### Scenario #3: Position/Velocity and Yaw Angle Control
+
+Next, we implemented Position and Velocity control and tuned the corresponding parameters. Upon completion, a successful run resulted:
+
+```
+Simulation #75 (../config/3_PositionControl.txt)
+PASS: ABS(Quad1.Pos.X) was less than 0.100000 for at least 1.250000 seconds
+PASS: ABS(Quad2.Pos.X) was less than 0.100000 for at least 1.250000 seconds
+PASS: ABS(Quad2.Yaw) was less than 0.100000 for at least 1.000000 seconds
+```
+
+
+---
+
+![Scenario 4 Complete](./misc/SimulatorScenario4Complete.png)
+
+
+##### Scenario #4: Non-Idealities and Robustness
+
+For this scenario, we had 3 quadrotors with the following conditions:
+
+* Quad #1 (red): vehicle is heavier than usual
+* Quad #2 (orange): vehicle is an ideal quad
+* Quad #3 (green): vehicle has its center of mass shifted back
+
+*Note: The order is as they are in the scenario (though they are laid out in the opposite order on the screen)*
+
+By tuning the parameters and implementing the integral component in the AltitudeControl() to compensate for cummulative error over time, I was able to compensate for the extra heavy vehicle. 
+
+Beyond that, this scenario required tuning following parameters:
+
+```
+# Position control gains
+kpPosXY = 25
+kpPosZ = 50
+KiPosZ = 20
+
+# Velocity control gains
+kpVelXY = 10
+kpVelZ = 20
+```
+
+Upon completion we got the following feedback:
+
+```
+Simulation #1401 (../config/4_Nonidealities.txt)
+PASS: ABS(Quad1.PosFollowErr) was less than 0.100000 for at least 1.500000 seconds
+PASS: ABS(Quad2.PosFollowErr) was less than 0.100000 for at least 1.500000 seconds
+PASS: ABS(Quad3.PosFollowErr) was less than 0.100000 for at least 1.500000 seconds
+```
+
+---
+
+![Scenario 5 Complete](./misc/SimulatorScenario5Complete.png)
+
+##### Scenario #5: Tracking Trajectories
+
+For the final scenario, there were 2 quads that are following a figure 8 trajectory. If all of the other scenarios are successful, this scenario should be successful as well, as shown by the result:
+
+```
+Simulation #89 (../config/5_TrajectoryFollow.txt)
+PASS: ABS(Quad2.PosFollowErr) was less than 0.250000 for at least 3.000000 seconds
+```
