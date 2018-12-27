@@ -26,6 +26,10 @@ bld/
 # CLion/IntelliJ IDEA
 .idea/
 
+# xcode/osx specific
+.DS_Store
+xcuserdata/
 
 # manual cmake build ignores
 build/
+
