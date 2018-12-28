@@ -12,7 +12,7 @@ The Attitude Controller is further detailed in the image below:
 
 The sections below correspond to the project [rubric](https://review.udacity.com/#!/rubrics/1643/view) and outline how each requirement was satisfied.
 
--- ***Note:** the 3 images above were provided by the course* --
+*Note: The 3 images above were provided by the course*
 
 ---
 
@@ -44,7 +44,7 @@ momentCmd = MOI * (kpPQR * rateError);
 
 This method determines the roll and pitch angle rates for the vehicle. As input, this method receives a commanded acceleration as a V3F (roll and pitch only), the vehicle attitude as a Quaternion and a collective thrust command. This controller is implemented as a P controller.
 
-In order to convert between body frame accelerations and world frame accelerations, a rotation matrix will be required. There is provided code to perform this translation between the provided vehicle attitude in Quaternions and a rotation 3x3 matrix:
+In order to convert between the world frame and body frame, a rotation matrix will be required. There is provided code to perform this translation between the provided vehicle attitude in Quaternions and a rotation 3x3 matrix:
 
 ```c++
 Mat3x3F R = attitude.RotationMatrix_IwrtB();
@@ -55,7 +55,6 @@ The first task is to make sure that the thrust command is positive. If it is zer
 Finally, I apply the following formula to get the roll and pitch angle rates:
 
 ![Roll Pitch Control Formula](./misc/RollPitchControlFormula.png)
-
 
 The formula implemented in code:
 
@@ -113,7 +112,7 @@ float uBar1 = p + i + d + accelZCmd;
 float R33 = R(2, 2);
 float zDotDot = (uBar1 - CONST_GRAVITY) / R33;
 ```
-Constrain vehicle acceleration between max descent/ascent rates for vehicle
+Constrain acceleration between max descent/ascent rates for vehicle:
 
 ```c++
 zDotDot = CONSTRAIN(zDotDot, -maxDescentRate / dt, maxAscentRate / dt);
@@ -127,11 +126,11 @@ thrust = mass * -zDotDot;
 
 #### 4. Implement lateral position control in C++.
 
-This method determines the commanded acceleration in x/y given given the current vs desired lateral position, current vs. desired lateral velocity and lateral feed forward acceleration. 
+This method determines the commanded acceleration in x/y given the current vs desired lateral position, current vs. desired lateral velocity and lateral feed forward acceleration. 
 
-This method will use a PD controller to output lateral acceleration commands in the x/y direction that will be used as input to the Roll Pitch Controller. The Roll Pitch Controller then will convert those accelerations into to $b^x_c$ and $b^y_c$.
+This method will use a PD controller to output lateral acceleration commands in the x/y direction that will be used as input to the Roll Pitch Controller. The Roll Pitch Controller then will convert those accelerations into to b_x_c and b_y_c.
 
-Ultimately, this will generate lateral acceleration by changing the vehicle's body orientation. Then, this will result in an a thrust in the desired direction.
+Ultimately, this will generate lateral acceleration by changing the vehicle's body orientation. The attitude change will then result in an a thrust in the desired direction.
 
 The control equations are:
 
@@ -240,7 +239,7 @@ cmd.desiredThrustsN[3] = (-rollThrust - pitchThrust + yawThrust + vertThrust) / 
 
 Upon initial setup, and after accounting for the proper weight of the vehicle, this scenario passed. Later this would pass again once GenerateMotorThrusts() was implemented:
 
-```bash
+```
 Simulation #1876 (../config/1_Intro.txt)
 PASS: ABS(Quad.PosFollowErr) was less than 0.500000 for at least 0.800000 seconds
 ```
@@ -253,7 +252,7 @@ PASS: ABS(Quad.PosFollowErr) was less than 0.500000 for at least 0.800000 second
 
 Next, we implemented Body Rate Control and Roll Pitch Control. Upon successful tuning of the parameters, a successful run resulted:
 
-```bash
+```
 Simulation #2519 (../config/2_AttitudeControl.txt)
 PASS: ABS(Quad.Roll) was less than 0.025000 for at least 0.750000 seconds
 PASS: ABS(Quad.Omega.X) was less than 2.500000 for at least 0.750000 seconds
@@ -267,7 +266,7 @@ PASS: ABS(Quad.Omega.X) was less than 2.500000 for at least 0.750000 seconds
 
 Next, we implemented Position and Velocity control and tuned the corresponding parameters. Upon completion, a successful run resulted:
 
-```bash
+```
 Simulation #75 (../config/3_PositionControl.txt)
 PASS: ABS(Quad1.Pos.X) was less than 0.100000 for at least 1.250000 seconds
 PASS: ABS(Quad2.Pos.X) was less than 0.100000 for at least 1.250000 seconds
@@ -307,7 +306,7 @@ kpVelZ = 20
 
 Upon completion we got the following feedback:
 
-```bash
+```
 Simulation #1401 (../config/4_Nonidealities.txt)
 PASS: ABS(Quad1.PosFollowErr) was less than 0.100000 for at least 1.500000 seconds
 PASS: ABS(Quad2.PosFollowErr) was less than 0.100000 for at least 1.500000 seconds
@@ -320,9 +319,11 @@ PASS: ABS(Quad3.PosFollowErr) was less than 0.100000 for at least 1.500000 secon
 
 ##### Scenario #5: Tracking Trajectories
 
-For the final scenario, there were 2 quads that are following a figure 8 trajectory. If all of the other scenarios are successful, this scenario should be successful as well, as shown by the result:
+For the final scenario, there were 2 quads that are following a figure 8 trajectory. 
 
-```bash
+This scenario passed, as shown by the result:
+
+```
 Simulation #89 (../config/5_TrajectoryFollow.txt)
 PASS: ABS(Quad2.PosFollowErr) was less than 0.250000 for at least 3.000000 seconds
 ```
