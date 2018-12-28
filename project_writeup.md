@@ -24,19 +24,19 @@ This method determines the commanded 3-axis moment for the vehicle. As input, th
 
 To get the difference between the rate and desired body rates, using the V3F type, we are able to perform this calculation in a single operation:
 
-```
+```c++
 V3F rateError = pqrCmd - pqr;
 ```
 
 Next, we get the moment of inertia (as `MOI`) as a V3F for the next step: 
 
-```
+```c++
 V3F MOI = V3F(Ixx, Iyy, Izz);
 ```
 
 Finally, the commanded moment is MOI * k_m * rateError. The k_m is the 3-axis constant of proportionality.
 
-```
+```c++
 momentCmd = MOI * (kpPQR * rateError);
 ```
 
@@ -46,7 +46,7 @@ This method determines the roll and pitch angle rates for the vehicle. As input,
 
 In order to convert between body frame accelerations and world frame accelerations, a rotation matrix will be required. There is provided code to perform this translation between the provided vehicle attitude in Quaternions and a rotation 3x3 matrix:
 
-```
+```c++
 Mat3x3F R = attitude.RotationMatrix_IwrtB();
 ```
 
@@ -59,7 +59,7 @@ Finally, I apply the following formula to get the roll and pitch angle rates:
 
 The formula implemented in code:
 
-```
+```c++
 //calculate error rates in the inertial frame
 float vertAccel = collThrustCmd / mass;
 float b_x_c = -CONSTRAIN(accelCmd.x / vertAccel, -maxTiltAngle, maxTiltAngle);
@@ -91,7 +91,7 @@ This controller is implemented as a full PID controller. I am globally (at a glo
 
 First, calculate proportional, integral and differential components:
 
-```
+```c++
 //proportional
 float zErr = posZCmd - posZ;
 float p = kpPosZ * zErr;
@@ -107,7 +107,7 @@ float d = kpVelZ * zErrDot;
 
 Then, calculate vertical acceleration with full PID:
 
-```
+```c++
 //PID control + accel feed-forward
 float uBar1 = p + i + d + accelZCmd;
 float R33 = R(2, 2);
@@ -115,13 +115,13 @@ float zDotDot = (uBar1 - CONST_GRAVITY) / R33;
 ```
 Constrain vehicle acceleration between max descent/ascent rates for vehicle
 
-```
+```c++
 zDotDot = CONSTRAIN(zDotDot, -maxDescentRate / dt, maxAscentRate / dt);
 ```
 
 Then, derive commanded vertical (flip sign for acceleration to indictate down = positive z direction):
 
-```
+```c++
 thrust = mass * -zDotDot;
 ```
 
@@ -139,7 +139,7 @@ The control equations are:
 
 First, calculate the commanded velocity component and limit it to the max speed:
 
-```
+```c++
 // Position (apply Max Speed)
 V3F velXYCmd = kpPosXY * (posCmd - pos);
 if (velXYCmd.magXY() > maxSpeedXY)
@@ -148,7 +148,7 @@ if (velXYCmd.magXY() > maxSpeedXY)
 
 Then, calculate the commanded accelerations while limiting it to the max acceleration:
 
-```
+```c++
 accelCmd += kpPosXY * (posCmd - pos) + kpVelXY * (velCmd - vel);
 
 if (accelCmd.magXY() > maxAccelXY)
@@ -161,14 +161,14 @@ This method determines the yaw rate in rad/s given a current and commanded yaw, 
 
 First, we need to make sure that the rate part in radians that is less than a full rotation. We use fmod for this purpose to get the fractional (remainder) part):
 
-```
+```c++
 float twoPi = 2.f * F_PI;
 float yawCmdNew = fmod(yawCmd, twoPi);
 ```
 
 Then, determine the error rate:
 
-```
+```c++
 float yawError = yawCmdNew - yaw;
 
 if (yawError > F_PI)
@@ -179,7 +179,7 @@ else if (yawError < -F_PI)
 
 Then, determine the rate command in rad/sec:
 
-```
+```c++
 yawRateCmd = kpYaw * yawError;
 ```
 
@@ -189,7 +189,7 @@ This method converts the commanded moments and vertical thrusts, which were outp
 
 For the first part, I needed to determine the 4 thrusts overall, 3 for the moments and 1 for the vertical thrust.
 
-```
+```c++
 	float l = L / sqrt(2.f);
 
 	float rollThrust = momentCmd.x / l;
@@ -202,7 +202,7 @@ Next, I needed to apply each of those thrusts to each motor. This required that 
 
 I left a cheat sheet as a comment in my code so I could determine which force was being applied in which direction depending on the motor pair (in the case of the moments) and divided equally in the case of the vertical thrust command.
 
-```
+```c++
 	/*
 	    roll (x-axis):  1&4 vs 2&3
 	    pitch (y-axis): 1&2 vs 3&4
@@ -213,7 +213,7 @@ I left a cheat sheet as a comment in my code so I could determine which force wa
 
 Finally, I ended up with the following code, applying the forces to each motor. I labelled each motor in the code since in this implementation the 3rd and 4th rotors were labelled differently than the convention used in the course.
 
-```
+```c++
 // front left (Rotor 1)
 cmd.desiredThrustsN[0] = (rollThrust + pitchThrust + yawThrust + vertThrust) / 4.f; 
 
@@ -240,7 +240,7 @@ cmd.desiredThrustsN[3] = (-rollThrust - pitchThrust + yawThrust + vertThrust) / 
 
 Upon initial setup, and after accounting for the proper weight of the vehicle, this scenario passed. Later this would pass again once GenerateMotorThrusts() was implemented:
 
-```
+```bash
 Simulation #1876 (../config/1_Intro.txt)
 PASS: ABS(Quad.PosFollowErr) was less than 0.500000 for at least 0.800000 seconds
 ```
@@ -253,7 +253,7 @@ PASS: ABS(Quad.PosFollowErr) was less than 0.500000 for at least 0.800000 second
 
 Next, we implemented Body Rate Control and Roll Pitch Control. Upon successful tuning of the parameters, a successful run resulted:
 
-```
+```bash
 Simulation #2519 (../config/2_AttitudeControl.txt)
 PASS: ABS(Quad.Roll) was less than 0.025000 for at least 0.750000 seconds
 PASS: ABS(Quad.Omega.X) was less than 2.500000 for at least 0.750000 seconds
@@ -267,7 +267,7 @@ PASS: ABS(Quad.Omega.X) was less than 2.500000 for at least 0.750000 seconds
 
 Next, we implemented Position and Velocity control and tuned the corresponding parameters. Upon completion, a successful run resulted:
 
-```
+```bash
 Simulation #75 (../config/3_PositionControl.txt)
 PASS: ABS(Quad1.Pos.X) was less than 0.100000 for at least 1.250000 seconds
 PASS: ABS(Quad2.Pos.X) was less than 0.100000 for at least 1.250000 seconds
@@ -294,7 +294,7 @@ By tuning the parameters and implementing the integral component in the Altitude
 
 Beyond that, this scenario required tuning following parameters:
 
-```
+```c++
 # Position control gains
 kpPosXY = 25
 kpPosZ = 50
@@ -307,7 +307,7 @@ kpVelZ = 20
 
 Upon completion we got the following feedback:
 
-```
+```bash
 Simulation #1401 (../config/4_Nonidealities.txt)
 PASS: ABS(Quad1.PosFollowErr) was less than 0.100000 for at least 1.500000 seconds
 PASS: ABS(Quad2.PosFollowErr) was less than 0.100000 for at least 1.500000 seconds
@@ -322,7 +322,7 @@ PASS: ABS(Quad3.PosFollowErr) was less than 0.100000 for at least 1.500000 secon
 
 For the final scenario, there were 2 quads that are following a figure 8 trajectory. If all of the other scenarios are successful, this scenario should be successful as well, as shown by the result:
 
-```
+```bash
 Simulation #89 (../config/5_TrajectoryFollow.txt)
 PASS: ABS(Quad2.PosFollowErr) was less than 0.250000 for at least 3.000000 seconds
 ```
