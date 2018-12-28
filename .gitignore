@@ -33,3 +33,6 @@ xcuserdata/
 # manual cmake build ignores
 build/
 
+# Linux-specific excludes
+build-CPPSim*/
+CPPSim.pro.user
