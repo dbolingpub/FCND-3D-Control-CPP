@@ -1,4 +1,6 @@
-## Flying Car: 3D Control
+# Flying Car: 3D Control
+
+## Overview
 
 ![Quad Image](./misc/DroneSpecImage.png)
 
@@ -14,7 +16,16 @@ The sections below correspond to the project [rubric](https://review.udacity.com
 
 *Note: The 3 images above were provided by the course*
 
----
+
+<br/>
+
+## Project Setup
+
+In order to get this project to run on your machine, follow the Development Guide Setup section  in the original [README](./README_FromParentRepo.md) from the [parent repo](https://github.com/udacity/FCND-Controls-CPP). 
+
+<br/>
+
+## Project Details
 
 ### Implement Controller
 
