@@ -1,4 +1,4 @@
-## Flying Car 3D Control
+## Flying Car: 3D Control
 
 ![Quad Image](./misc/DroneSpecImage.png)
 
