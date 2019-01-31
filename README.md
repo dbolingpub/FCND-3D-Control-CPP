@@ -2,7 +2,7 @@
 
 ![Quad Image](./misc/DroneSpecImage.png)
 
-The 3D Controls project is the third project in the Udacity Flying Car Nanodegree. In this project, our goal is to implement a cascaded PD controller with an structure similar to the control architecture shown in the image below.
+The 3D Control project is the third project in the Udacity Flying Car Nanodegree. In this project, our goal is to implement a cascaded PD controller with an structure similar to the control architecture shown in the image below.
 
 ![Controller Architecture](./misc/3DControllerArchitecture.png)
 
